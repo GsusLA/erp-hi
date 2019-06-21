@@ -324,125 +324,126 @@ $api->version('v1', function ($api) {
             $api->get('{id}', 'App\Http\Controllers\v1\CADECO\Finanzas\SolicitudPagoAnticipadoController@show')->where(['id' => '[0-9]+']);
             $api->patch('{id}/cancelar', 'App\Http\Controllers\v1\CADECO\Finanzas\SolicitudPagoAnticipadoController@cancelar')->where(['id' => '[0-9]+']);
             $api->get('pdf/{id}', 'App\Http\Controllers\v1\CADECO\Finanzas\SolicitudPagoAnticipadoController@pdfPagoAnticipado')->where(['id' => '[0-9]+']);
-
-            /**
-             * DISTRIBUCIÓN DE RECURSOS AUTORIZADOS EN REMESA
-             */
-            $api->group(['prefix' => 'distribuir-recurso-remesa'], function ($api) {
-                $api->get('paginate', 'App\Http\Controllers\v1\CADECO\Finanzas\DistribucionRecursoRemesaController@paginate');
-                $api->post('/', 'App\Http\Controllers\v1\CADECO\Finanzas\DistribucionRecursoRemesaController@store');
-                $api->get('{id}', 'App\Http\Controllers\v1\CADECO\Finanzas\DistribucionRecursoRemesaController@show')->where(['id' => '[0-9]+']);
-                $api->patch('{id}/cancelar', 'App\Http\Controllers\v1\CADECO\Finanzas\DistribucionRecursoRemesaController@cancelar')->where(['id' => '[0-9]+']);
-            });
-
-            /**
-             * REMESA
-             */
-            $api->group(['prefix' => 'remesa'], function ($api) {
-                $api->get('/', 'App\Http\Controllers\v1\MODULOSSAO\RemesaController@index');
-                $api->get('{id}', 'App\Http\Controllers\v1\MODULOSSAO\RemesaController@show')->where(['id' => '[0-9]+']);
-            });
-
-            /**
-             * CUENTA BANCARIA PROVEEDOR
-             */
-            $api->group(['prefix' => 'cuenta-bancaria-proveedor'], function ($api) {
-                $api->get('/', 'App\Http\Controllers\v1\CADECO\Finanzas\CuentaBancariaProveedorController@index');
-            });
         });
 
         /**
-         * PERSONALIZADO
+         * DISTRIBUCIÓN DE RECURSOS AUTORIZADOS EN REMESA
          */
-        $api->group(['middleware' => 'api', 'prefix' => 'seguridad'], function ($api) {
-
-            //ESQUEMA PERSONALIZADO
-            $api->group(['prefix' => 'rol'], function ($api) {
-                $api->post('/', 'App\Http\Controllers\v1\CADECO\Seguridad\RolController@store');
-                $api->get('/', 'App\Http\Controllers\v1\CADECO\Seguridad\RolController@index');
-                $api->get('{id}', 'App\Http\Controllers\v1\CADECO\Seguridad\RolController@show')->where(['id' => '[0-9]+']);
-                $api->get('por-usuario/{user_id}', 'App\Http\Controllers\v1\CADECO\Seguridad\RolController@porUsuario')->where(['user_id' => '[0-9]+']);
-                $api->post('asignacion-masiva', 'App\Http\Controllers\v1\CADECO\Seguridad\RolController@asignacionPersonalizada');
-                $api->post('desasignacion-masiva', 'App\Http\Controllers\v1\CADECO\Seguridad\RolController@desasignacionPersonalizada');
-                $api->post('asignacion-permisos', 'App\Http\Controllers\v1\CADECO\Seguridad\RolController@asignacionPermisos');
-                //$api->post('crear-rol', 'App\Http\Controllers\v1\CADECO\Seguridad\RolController@crearRol');
-            });
+        $api->group(['prefix' => 'distribuir-recurso-remesa'], function ($api) {
+            $api->get('paginate', 'App\Http\Controllers\v1\CADECO\Finanzas\DistribucionRecursoRemesaController@paginate');
+            $api->post('/', 'App\Http\Controllers\v1\CADECO\Finanzas\DistribucionRecursoRemesaController@store');
+            $api->get('{id}', 'App\Http\Controllers\v1\CADECO\Finanzas\DistribucionRecursoRemesaController@show')->where(['id' => '[0-9]+']);
+            $api->patch('{id}/cancelar', 'App\Http\Controllers\v1\CADECO\Finanzas\DistribucionRecursoRemesaController@cancelar')->where(['id' => '[0-9]+']);
         });
 
         /**
-         * TESORERIA
+         * REMESA
          */
-        $api->group(['middleware' => 'api', 'prefix' => 'tesoreria'], function ($api) {
-            //MOVIMIENTOS BANCARIOS
-            $api->group(['prefix' => 'movimiento-bancario'], function ($api) {
-                $api->post('/', 'App\Http\Controllers\v1\CADECO\Tesoreria\MovimientoBancarioController@store');
-                $api->get('paginate', 'App\Http\Controllers\v1\CADECO\Tesoreria\MovimientoBancarioController@paginate');
-                $api->get('{id}', 'App\Http\Controllers\v1\CADECO\Tesoreria\MovimientoBancarioController@show')->where(['id' => '[0-9]+']);
-                $api->patch('{id}', 'App\Http\Controllers\v1\CADECO\Tesoreria\MovimientoBancarioController@update')->where(['id' => '[0-9]+']);
-                $api->delete('{id}', 'App\Http\Controllers\v1\CADECO\Tesoreria\MovimientoBancarioController@destroy')->where(['id' => '[0-9]+']);
-            });
-
-            //TRASPASO ENTRE CUENTAS
-            $api->group(['prefix' => 'traspaso-entre-cuentas'], function ($api) {
-                $api->post('/', 'App\Http\Controllers\v1\CADECO\Tesoreria\TraspasoEntreCuentasController@store');
-                $api->get('paginate', 'App\Http\Controllers\v1\CADECO\Tesoreria\TraspasoEntreCuentasController@paginate');
-                $api->get('{id}', 'App\Http\Controllers\v1\CADECO\Tesoreria\TraspasoEntreCuentasController@show')->where(['id' => '[0-9]+']);
-                $api->patch('{id}', 'App\Http\Controllers\v1\CADECO\Tesoreria\TraspasoEntreCuentasController@update')->where(['id' => '[0-9]+']);
-                $api->delete('{id}', 'App\Http\Controllers\v1\CADECO\Tesoreria\TraspasoEntreCuentasController@destroy')->where(['id' => '[0-9]+']);
-            });
-
-            //TIPOS MOVIMIENTO
-            $api->group(['prefix' => 'tipo-movimiento'], function ($api) {
-                $api->get('/', 'App\Http\Controllers\v1\CADECO\Tesoreria\TipoMovimientoController@index');
-            });
+        $api->group(['prefix' => 'remesa'], function ($api) {
+            $api->get('/', 'App\Http\Controllers\v1\MODULOSSAO\RemesaController@index');
+            $api->get('{id}', 'App\Http\Controllers\v1\MODULOSSAO\RemesaController@show')->where(['id' => '[0-9]+']);
         });
 
+        /**
+         * CUENTA BANCARIA PROVEEDOR
+         */
+        $api->group(['prefix' => 'cuenta-bancaria-proveedor'], function ($api) {
+            $api->get('/', 'App\Http\Controllers\v1\CADECO\Finanzas\CuentaBancariaProveedorController@index');
+        });
+    });
 
-        /** SEGURIDAD ERP */
-        $api->group(['middleware' => 'api', 'prefix' => 'SEGURIDAD_ERP'], function ($api) {
-            $api->group(['prefix' => 'permiso'], function ($api) {
-                $api->get('/', 'App\Http\Controllers\v1\SEGURIDAD_ERP\PermisoController@index');
-                $api->get('por-usuario/{id}', 'App\Http\Controllers\v1\SEGURIDAD_ERP\PermisoController@porUsuario')->where(['id' => '[0-9]+']);
-            });
+    /**
+     * PERSONALIZADO
+     */
+    $api->group(['middleware' => 'api', 'prefix' => 'seguridad'], function ($api) {
 
-            $api->group(['prefix' => 'rol'], function ($api) {
-                $api->post('/', 'App\Http\Controllers\v1\SEGURIDAD_ERP\RolController@store');
-                $api->get('/', 'App\Http\Controllers\v1\SEGURIDAD_ERP\RolController@index');
-                $api->get('{id}', 'App\Http\Controllers\v1\SEGURIDAD_ERP\RolController@show')->where(['id' => '[0-9]+']);
-                $api->delete('{id}', 'App\Http\Controllers\v1\SEGURIDAD_ERP\RolController@destroy')->where(['id' => '[0-9]+']);
-                $api->get('por-usuario/{user_id}', 'App\Http\Controllers\v1\SEGURIDAD_ERP\RolController@porUsuario')->where(['user_id' => '[0-9]+']);
-                $api->post('asignacion-masiva', 'App\Http\Controllers\v1\SEGURIDAD_ERP\RolController@asignacionMasiva');
-                $api->post('desasignacion-masiva', 'App\Http\Controllers\v1\SEGURIDAD_ERP\RolController@desasignacionMasiva');
-                $api->post('asignacion-permisos', 'App\Http\Controllers\v1\SEGURIDAD_ERP\RolController@asignacionPermisos');
-            });
+        //ESQUEMA PERSONALIZADO
+        $api->group(['prefix' => 'rol'], function ($api) {
+            $api->post('/', 'App\Http\Controllers\v1\CADECO\Seguridad\RolController@store');
+            $api->get('/', 'App\Http\Controllers\v1\CADECO\Seguridad\RolController@index');
+            $api->get('{id}', 'App\Http\Controllers\v1\CADECO\Seguridad\RolController@show')->where(['id' => '[0-9]+']);
+            $api->get('por-usuario/{user_id}', 'App\Http\Controllers\v1\CADECO\Seguridad\RolController@porUsuario')->where(['user_id' => '[0-9]+']);
+            $api->post('asignacion-masiva', 'App\Http\Controllers\v1\CADECO\Seguridad\RolController@asignacionPersonalizada');
+            $api->post('desasignacion-masiva', 'App\Http\Controllers\v1\CADECO\Seguridad\RolController@desasignacionPersonalizada');
+            $api->post('asignacion-permisos', 'App\Http\Controllers\v1\CADECO\Seguridad\RolController@asignacionPermisos');
+            //$api->post('crear-rol', 'App\Http\Controllers\v1\CADECO\Seguridad\RolController@crearRol');
+        });
+    });
 
-            $api->group(['prefix' => 'sistema'], function ($api) {
-                $api->get('/', 'App\Http\Controllers\v1\SEGURIDAD_ERP\SistemaController@index');
-                $api->get('sistemas-obra', 'App\Http\Controllers\v1\SEGURIDAD_ERP\SistemaController@porObra');
-                $api->post('asignacion-sistemas', 'App\Http\Controllers\v1\SEGURIDAD_ERP\SistemaController@asignacionSistemas');
-            });
-
-            $api->group(['prefix' => 'tipo-proyecto'], function ($api) {
-                $api->get('/', 'App\Http\Controllers\v1\SEGURIDAD_ERP\TipoProyectoController@index');
-            });
-
-            $api->group(['prefix' => 'google-2fa'], function ($api) {
-                $api->get('qr', 'App\Http\Controllers\v1\SEGURIDAD_ERP\Google2faController@qr');
-                $api->post('check', 'App\Http\Controllers\v1\SEGURIDAD_ERP\Google2faController@check');
-            });
+    /**
+     * TESORERIA
+     */
+    $api->group(['middleware' => 'api', 'prefix' => 'tesoreria'], function ($api) {
+        //MOVIMIENTOS BANCARIOS
+        $api->group(['prefix' => 'movimiento-bancario'], function ($api) {
+            $api->post('/', 'App\Http\Controllers\v1\CADECO\Tesoreria\MovimientoBancarioController@store');
+            $api->get('paginate', 'App\Http\Controllers\v1\CADECO\Tesoreria\MovimientoBancarioController@paginate');
+            $api->get('{id}', 'App\Http\Controllers\v1\CADECO\Tesoreria\MovimientoBancarioController@show')->where(['id' => '[0-9]+']);
+            $api->patch('{id}', 'App\Http\Controllers\v1\CADECO\Tesoreria\MovimientoBancarioController@update')->where(['id' => '[0-9]+']);
+            $api->delete('{id}', 'App\Http\Controllers\v1\CADECO\Tesoreria\MovimientoBancarioController@destroy')->where(['id' => '[0-9]+']);
         });
 
-        /** IGH */
-        $api->group(['middleware' => 'api', 'prefix' => 'IGH'], function ($api) {
-            $api->group(['prefix' => 'usuario'], function ($api) {
-                $api->get('currentUser', 'App\Http\Controllers\v1\IGH\UsuarioController@currentUser');
-                $api->get('/', 'App\Http\Controllers\v1\IGH\UsuarioController@index');
-                $api->get('{id}', 'App\Http\Controllers\v1\IGH\UsuarioController@show')->where(['id' => '[0-9]+']);
-            });
+        //TRASPASO ENTRE CUENTAS
+        $api->group(['prefix' => 'traspaso-entre-cuentas'], function ($api) {
+            $api->post('/', 'App\Http\Controllers\v1\CADECO\Tesoreria\TraspasoEntreCuentasController@store');
+            $api->get('paginate', 'App\Http\Controllers\v1\CADECO\Tesoreria\TraspasoEntreCuentasController@paginate');
+            $api->get('{id}', 'App\Http\Controllers\v1\CADECO\Tesoreria\TraspasoEntreCuentasController@show')->where(['id' => '[0-9]+']);
+            $api->patch('{id}', 'App\Http\Controllers\v1\CADECO\Tesoreria\TraspasoEntreCuentasController@update')->where(['id' => '[0-9]+']);
+            $api->delete('{id}', 'App\Http\Controllers\v1\CADECO\Tesoreria\TraspasoEntreCuentasController@destroy')->where(['id' => '[0-9]+']);
+        });
 
-            $api->group(['prefix' => 'menu'], function ($api) {
-                $api->get('/', 'App\Http\Controllers\v1\IGH\MenuController@index');
-            });
+        //TIPOS MOVIMIENTO
+        $api->group(['prefix' => 'tipo-movimiento'], function ($api) {
+            $api->get('/', 'App\Http\Controllers\v1\CADECO\Tesoreria\TipoMovimientoController@index');
+        });
+    });
+
+
+    /** SEGURIDAD ERP */
+    $api->group(['middleware' => 'api', 'prefix' => 'SEGURIDAD_ERP'], function ($api) {
+        $api->group(['prefix' => 'permiso'], function ($api) {
+            $api->get('/', 'App\Http\Controllers\v1\SEGURIDAD_ERP\PermisoController@index');
+            $api->get('por-usuario/{id}', 'App\Http\Controllers\v1\SEGURIDAD_ERP\PermisoController@porUsuario')->where(['id' => '[0-9]+']);
+        });
+
+        $api->group(['prefix' => 'rol'], function ($api) {
+            $api->post('/', 'App\Http\Controllers\v1\SEGURIDAD_ERP\RolController@store');
+            $api->get('/', 'App\Http\Controllers\v1\SEGURIDAD_ERP\RolController@index');
+            $api->get('{id}', 'App\Http\Controllers\v1\SEGURIDAD_ERP\RolController@show')->where(['id' => '[0-9]+']);
+            $api->delete('{id}', 'App\Http\Controllers\v1\SEGURIDAD_ERP\RolController@destroy')->where(['id' => '[0-9]+']);
+            $api->get('por-usuario/{user_id}', 'App\Http\Controllers\v1\SEGURIDAD_ERP\RolController@porUsuario')->where(['user_id' => '[0-9]+']);
+            $api->post('asignacion-masiva', 'App\Http\Controllers\v1\SEGURIDAD_ERP\RolController@asignacionMasiva');
+            $api->post('desasignacion-masiva', 'App\Http\Controllers\v1\SEGURIDAD_ERP\RolController@desasignacionMasiva');
+            $api->post('asignacion-permisos', 'App\Http\Controllers\v1\SEGURIDAD_ERP\RolController@asignacionPermisos');
+        });
+
+        $api->group(['prefix' => 'sistema'], function ($api) {
+            $api->get('/', 'App\Http\Controllers\v1\SEGURIDAD_ERP\SistemaController@index');
+            $api->get('sistemas-obra', 'App\Http\Controllers\v1\SEGURIDAD_ERP\SistemaController@porObra');
+            $api->post('asignacion-sistemas', 'App\Http\Controllers\v1\SEGURIDAD_ERP\SistemaController@asignacionSistemas');
+        });
+
+        $api->group(['prefix' => 'tipo-proyecto'], function ($api) {
+            $api->get('/', 'App\Http\Controllers\v1\SEGURIDAD_ERP\TipoProyectoController@index');
+        });
+
+        $api->group(['prefix' => 'google-2fa'], function ($api) {
+            $api->get('qr', 'App\Http\Controllers\v1\SEGURIDAD_ERP\Google2faController@qr');
+            $api->post('check', 'App\Http\Controllers\v1\SEGURIDAD_ERP\Google2faController@check');
+        });
+    });
+
+    /** IGH */
+    $api->group(['middleware' => 'api', 'prefix' => 'IGH'], function ($api) {
+        $api->group(['prefix' => 'usuario'], function ($api) {
+            $api->get('currentUser', 'App\Http\Controllers\v1\IGH\UsuarioController@currentUser');
+            $api->get('/', 'App\Http\Controllers\v1\IGH\UsuarioController@index');
+            $api->get('{id}', 'App\Http\Controllers\v1\IGH\UsuarioController@show')->where(['id' => '[0-9]+']);
+        });
+
+        $api->group(['prefix' => 'menu'], function ($api) {
+            $api->get('/', 'App\Http\Controllers\v1\IGH\MenuController@index');
         });
     });
 });
+
