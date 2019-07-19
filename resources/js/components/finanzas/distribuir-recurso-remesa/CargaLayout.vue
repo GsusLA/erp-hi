@@ -64,7 +64,6 @@
             cargarLayout(e){
                 var formData = new FormData();
                 formData.append('file',  this.file);
-                formData.append('file_inter',  this.file);
                 return this.$store.dispatch('finanzas/distribuir-recurso-remesa/cargaManualLayout',
                     {
                         id: this.id,

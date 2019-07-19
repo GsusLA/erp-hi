@@ -23,16 +23,19 @@ class DistribucionRecursoRemesaManual
     }
 
     function create(){
+
         $this->generar();
         $llave = str_pad($this->id, 5, 0, STR_PAD_LEFT);
         $inter = "";
         $mismo = "";
+
         foreach ($this->data_inter as $dat){$inter .= $dat . PHP_EOL;}
         foreach ($this->data_mismo as $dat){$mismo .= $dat . PHP_EOL;}
-
+        //dd('panda');
         $file_m_banco = '#'.$llave.'-santander-local';
         $file_interb = '#'.$llave.'-santander-inter';
         $file_zip = '#'.$llave.'-santander';
+
         count($this->data_mismo) > 0? Storage::disk('portal_zip')->put($file_m_banco.'.txt', $mismo):'';
         count($this->data_inter) > 0? Storage::disk('portal_zip')->put($file_interb.'.txt', $inter):'';
 
@@ -42,8 +45,6 @@ class DistribucionRecursoRemesaManual
         $files = glob($files_global);
         $zipper->make($zip_file.'/' .$file_zip .'.zip')->add($files)->close();
 
-        $file = new Filesystem;
-        $file->cleanDirectory('layouts/files');
 
 
         $reg_layout = DistribucionRecursoRemesaLayout::where('id_distrubucion_recurso', '=', $this->id)->first();
@@ -62,7 +63,8 @@ class DistribucionRecursoRemesaManual
             $this->remesa->estado = 2;
             $this->remesa->save();
         }
-//dd('panda');
+
+        Storage::disk('portal_zip')->delete(Storage::disk('portal_zip')->allFiles());
         return Storage::disk('portal_descarga')->download($file_zip.'.zip');
     }
 
