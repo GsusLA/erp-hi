@@ -658,7 +658,7 @@ export const routes = [
                         }
                     },
                 ]
-            }
+            },
             {
                 path:'fondo',
                 component: require('./components/finanzas/fondo/Layout.vue'),

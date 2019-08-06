@@ -46,6 +46,7 @@ class GestionPagoController extends Controller
         $this->middleware('permiso:consultar_pagos')->only(['paginate','show']);
         $this->middleware('permiso:cargar_bitacora')->only(['presentaBitacora']);
         $this->middleware('permiso:registrar_pagos_bitacora')->only(['registrarPagos']);
+        $this->middleware('permiso:cargar_bitacora')->only(['presentaBitacora']);
 
         $this->service = $service;
         $this->fractal = $fractal;
