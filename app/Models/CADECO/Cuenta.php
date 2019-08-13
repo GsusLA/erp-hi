@@ -44,7 +44,7 @@ class Cuenta extends Model
                 $model->fecha_estado = $model->fecha_inicial;
                 $model->estado = 0;
             }else {
-                throw New \Exception('Ya existe un registro con el mismo número de cuenta.');
+                abort(403,'Ya existe un registro con el mismo número de cuenta.');
             }
         });
     }

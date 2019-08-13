@@ -195,13 +195,26 @@
                     'abreviatura':this.$data.abreviatura,
                     'id_tipo_cuentas_obra':this.$data.id_tipo_cuentas_obra
                 };
-                return this.$store.dispatch('cadeco/cuenta/store',  datos)
+                return this.$store.dispatch('cadeco/cuenta/find',  {id: this.id})
                     .then((data) => {
-                        // this.$parent.data.push(data);
-                        this.$emit('created', data);
-                        $(this.$refs.modal).modal('hide');
-                        // console.log(data);
+                        console.log(data);
+                        if(data){
+                            alert('polar');
+                        }
+                        // // this.$parent.data.push(data);
+                        // this.$emit('created', data);
+                        // $(this.$refs.modal).modal('hide');
+
                     })
+
+                // return this.$store.dispatch('cadeco/cuenta/store',  datos)
+                //     .then((data) => {
+                //         //console.log(data);
+                //         // this.$parent.data.push(data);
+                //         this.$emit('created', data);
+                //         $(this.$refs.modal).modal('hide');
+                //
+                //     })
             },
             tipoCuenta(tipo) {
                 this.id_tipo_cuentas_obra = tipo;
