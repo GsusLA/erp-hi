@@ -4,9 +4,13 @@
 namespace App\LAYOUT;
 
 use App\Models\CADECO\Finanzas\DistribucionRecursoRemesaLayout;
+use COM;
 use DateInterval;
 use DateTime;
 use Illuminate\Support\Facades\Storage;
+use League\Flysystem\Filesystem;
+use League\Flysystem\Sftp\SftpAdapter;
+use phpseclib\Net\SSH2;
 
 class DistribucionRecursoRemesa
 {
@@ -14,16 +18,27 @@ class DistribucionRecursoRemesa
     protected $id;
     protected $remesa;
     protected $linea;
+    private $cifrado_entrada;
+    private $cifrado_salida;
+    private $decode_entrada;
+    private $decode_salida;
+
     public function __construct($id)
     {
         $this->id = $id;
         $this->remesa = \App\Models\CADECO\Finanzas\DistribucionRecursoRemesa::with('partida')->where('id', '=', $id)->first();
+        if($this->remesa->estado != 1){echo "Layout de distribucion de remesa no disponible.". PHP_EOL . "Estado: " . $this->remesa->estatus->descripcion ;die;}
+        if($this->remesa->remesaLayout){echo "Layout de distribucion de remesa pagada previamente." ;die;}
+        $this->cifrado_entrada = config('app.env_variables.SANTANDER_H2H_CIFRADO_ENTRADA');
+        $this->cifrado_salida = config('app.env_variables.SANTANDER_H2H_CIFRADO_SALIDA');
+        $this->decode_entrada = config('app.env_variables.SANTANDER_H2H_DECODE_ENTRADA');
+        $this->decode_salida = config('app.env_variables.SANTANDER_H2H_DECODE_SALIDA');
+        $this->sftp_entrada = config('app.env_variables.SANTANDER_SFTP_ENTRADA');
+        $this->sftp_salida = config('app.env_variables.SANTANDER_SFTP_SALIDA');
         $this->linea = 2;
     }
 
     function create(){
-        if($this->remesa->estado != 1){return "Layout de distribucion de remesa no disponible.". PHP_EOL . "Estado: " . $this->remesa->estatus->descripcion ;}
-        if($this->remesa->remesaLayout){return "Layout de distribucion de remesa descargado previamente." ;}
         $this->encabezado();
         $this->detalle();
         $this->sumario();
@@ -34,8 +49,12 @@ class DistribucionRecursoRemesa
         foreach ($this->data as $dat){$a .= $dat . "\n";}
         Storage::disk('h2h_in')->put($file_nombre.'.in', $a);
 
+        $this->enviarRepositorioFtp($file_nombre.'.in');
+
         $reg_layout = DistribucionRecursoRemesaLayout::where('id_distrubucion_recurso', '=', $this->id)->first();
 
+
+        dd('stop panda');
         if($reg_layout){
             $reg_layout->contador_descarga = $reg_layout->contador_descarga + 1;
             $reg_layout->save();
@@ -121,20 +140,15 @@ class DistribucionRecursoRemesa
     function detalle(){
         foreach ($this->remesa->partida as $key => $partida){
             if($partida->estado == 1) {
-                $replace = array(",", ".", "-");
-                $razon_social_abono = strlen($partida->cuentaAbono->empresa->razon_social) > 40 ? substr($partida->cuentaAbono->empresa->razon_social, 0, 40) :
-                    str_pad($partida->cuentaAbono->empresa->razon_social, 40, ' ', STR_PAD_RIGHT);
-                $razon_social_cargo = strlen($partida->cuentaCargo->empresa->razon_social) > 40 ? substr($partida->cuentaCargo->empresa->razon_social, 0, 40) :
-                    str_pad($partida->cuentaCargo->empresa->razon_social, 40, ' ', STR_PAD_RIGHT);
+                $razon_social_abono = strlen($partida->cuentaAbono->empresa->razon_social) > 40 ? substr($partida->cuentaAbono->empresa->razon_social, 0, 40) :$partida->cuentaAbono->empresa->razon_social;
+                $razon_social_cargo = strlen($partida->cuentaCargo->empresa->razon_social) > 40 ? substr($partida->cuentaCargo->empresa->razon_social, 0, 40) :$partida->cuentaCargo->empresa->razon_social;
                 $monto = explode('.', number_format($partida->documento->MontoTotal, '2', '.', ''));
-                $concepto = strlen($partida->documento->Concepto) > 40 ? substr($partida->documento->Concepto, 0, 40) :
-                    str_pad($partida->documento->Concepto, 40, ' ', STR_PAD_RIGHT);
-                $descripcion_referencia = strlen($partida->documento->Concepto) > 30 ? substr($partida->documento->Concepto, 0, 30) :
-                    str_pad($partida->documento->Concepto, 30, ' ', STR_PAD_RIGHT);
-                $tipo_operacion = '01';
-                $partida->documento->IDMonda == 2 ? $tipo_operacion = '09' : '';
-                $partida->cuentaAbono->complemento->id_banco_participante == 014 ? $tipo_operacion = '98' : '';
-                $tipo_cuenta_receptor = $tipo_operacion == 98 ? '01' : '40';
+                $concepto = strlen($partida->documento->Concepto) > 40 ? substr($partida->documento->Concepto, 1, 40) :$partida->documento->Concepto;
+                $descripcion_referencia = strlen($partida->documento->Concepto) > 30 ? substr($partida->documento->Concepto, 1, 30) :$partida->documento->Concepto;
+                $tipo_operacion         = $partida->cuentaAbono->tipo_cuenta == 1? '98':'01';
+                $tipo_cuenta_receptor   = $partida->cuentaAbono->tipo_cuenta == 1? '01':'40';
+
+
                 $this->data[] =
                     '02' . /** Detalle del Archivo. Valor Fijo: 02 */
                     str_pad($this->linea, 7, 0, STR_PAD_LEFT) .
@@ -142,30 +156,30 @@ class DistribucionRecursoRemesa
                     str_pad($partida->documento->IDMoneda, 2, 0, STR_PAD_LEFT) .
                     date('Ymd') .
                     '014' .
-                    str_pad($partida->cuentaAbono->complemento->id_banco_participante, 3, 0, STR_PAD_LEFT) .
+                    str_pad($partida->cuentaAbono->banco->ctg_banco->clave, 3, 0, STR_PAD_LEFT) .
                     str_pad($monto[0] . $monto[1], 15, 0, STR_PAD_LEFT) .
                     str_pad('', 16, ' ', STR_PAD_LEFT) .
                     $tipo_operacion .
                     date('Ymd') .
                     '01' .
                     str_pad($partida->cuentaCargo->numero, 20, 0, STR_PAD_LEFT) .
-                    str_pad(strtoupper(str_replace($replace, '', $razon_social_cargo)), 40, ' ', STR_PAD_RIGHT) .
-                    str_pad(strtoupper(str_replace($replace, '', $partida->cuentaCargo->empresa->rfc)), '18', ' ', STR_PAD_RIGHT) .
+                    str_pad(strtoupper($this->elimina_caracteres_especiales($razon_social_cargo)), 40, ' ', STR_PAD_RIGHT) .
+                    str_pad(strtoupper($this->elimina_caracteres_especiales($partida->cuentaCargo->empresa->rfc)), '18', ' ', STR_PAD_RIGHT) .
                     $tipo_cuenta_receptor .
                     str_pad($partida->cuentaAbono->cuenta_clabe, 20, 0, STR_PAD_LEFT) .
-                    strtoupper(str_replace($replace, '', $razon_social_abono)) .
-                    str_pad(strtoupper(str_replace($replace, '', $partida->cuentaAbono->empresa->rfc)), '18', ' ', STR_PAD_RIGHT) .
+                    str_pad(strtoupper($this->elimina_caracteres_especiales( $razon_social_abono)), '40', ' ', STR_PAD_RIGHT) .
+                    str_pad(strtoupper($this->elimina_caracteres_especiales($partida->cuentaAbono->empresa->rfc)), '18', ' ', STR_PAD_RIGHT) .
                     str_pad($partida->documento->IDDocumento, 40, ' ', STR_PAD_RIGHT) .
-                    str_pad(strtoupper(str_replace($replace, '', $partida->cuentaCargo->empresa->razon_social)), 40, ' ', STR_PAD_RIGHT) .
+                    str_pad(strtoupper($this->elimina_caracteres_especiales($partida->cuentaCargo->empresa->razon_social)), 40, ' ', STR_PAD_RIGHT) .
                     str_pad(0, 15, 0, STR_PAD_RIGHT) .
                     str_pad(1, 7, 0, STR_PAD_LEFT) .
-                    strtoupper(str_replace($replace, '', $concepto)) .
+                    str_pad(strtoupper($this->elimina_caracteres_especiales($concepto)), '40', ' ', STR_PAD_RIGHT) .
                     str_pad('', 30, ' ', STR_PAD_LEFT) .
                     '00' .
                     date('Ymd') .
                     str_pad('', 12, ' ', STR_PAD_LEFT) .
                     str_pad($this->remesa->id, 30, ' ', STR_PAD_RIGHT) .
-                    strtoupper(str_replace($replace, '', $descripcion_referencia));
+                    str_pad(strtoupper($this->elimina_caracteres_especiales($descripcion_referencia)), 30, ' ', STR_PAD_RIGHT);
                 $this->linea++;
             }
         }
@@ -187,12 +201,78 @@ class DistribucionRecursoRemesa
             $numero_operaciones .
             $importe_operaciones .
             str_pad('', 40, ' ') .
-            str_pad('', 399, ' ')
-            ;
+            str_pad('', 399, ' ');
+    }
+
+    function enviarRepositorioFtp($file){
+        $path = Storage::disk('h2h_in')->getDriver()->getAdapter()->getPathPrefix();
+        $cmd = str_replace('/', '\\', "copy " . $path . $file . " " . $this->cifrado_entrada . "\\" . $file);
+        exec($cmd , $salida, $resp);
+        if($resp != 0){echo 'Fallo copia a repositorio1';die;}
+        $cmd = str_replace('/', '\\', "copy " . $this->cifrado_entrada . "\\" . $file . " " . $this->cifrado_salida . "\\" . $file );
+        exec($cmd , $salida, $resp);
+        if($resp != 0){echo 'Fallo copia a repositorio2';die;}
+
+        $sftp = new SFTPConnection("172.50.32.48", 22);
+        $sftp->login("ftpuser1", "12345");
+
+        $sftp->uploadFile($this->cifrado_salida . "\\" . $file, $this->sftp_entrada . $file);
+
+        dd('pardo ok', $sftp);
 
     }
 
-    function enviarRepositorioFtp(){
+    function elimina_caracteres_especiales($string){
+        //echo $string;
+        //$string = trim($string);
+        $string = str_replace(
+            array('á', 'à', 'ä', 'â', 'ª', 'Á', 'À', 'Â', 'Ä'),
+            array('a', 'a', 'a', 'a', 'a', 'A', 'A', 'A', 'A'),
+            $string
+        );
+        $string = str_replace(
+            array('é', 'è', 'ë', 'ê', 'É', 'È', 'Ê', 'Ë'),
+            array('e', 'e', 'e', 'e', 'E', 'E', 'E', 'E'),
+            $string    );
+        $string = str_replace(
+            array('í', 'ì', 'ï', 'î', 'Í', 'Ì', 'Ï', 'Î'),
+            array('i', 'i', 'i', 'i', 'I', 'I', 'I', 'I'),
+            $string
+        );
+        $string = str_replace(
+            array('ó', 'ò', 'ö', 'ô', 'Ó', 'Ò', 'Ö', 'Ô'),
+            array('o', 'o', 'o', 'o', 'O', 'O', 'O', 'O'),
+            $string
+        );
+        $string = str_replace(
+            array('ú', 'ù', 'ü', 'û', 'Ú', 'Ù', 'Û', 'Ü'),
+            array('u', 'u', 'u', 'u', 'U', 'U', 'U', 'U'),
+            $string
+        );
+        $string = str_replace(
+            array('ñ', 'Ñ', 'ç', 'Ç'),
+            array('n', 'N', 'c', 'C'),
+            $string
+        );
+        $string = str_replace(
+            array('&'),
+            array('y'),
+            $string
+        );
+        //     //Esta parte se encarga de eliminar cualquier caracter extraño
+        $string = str_replace(
+            array("\\", "¨", "º", "-", "~",
+                "#", "@", "|", "!", "\"",
+                "·", "$", "%", "&", "/",
+                "(", ")", "?", "'", "¡",
+                "¿", "[", "^", "`", "]",
+                "+", "}", "{", "¨", "´",
+                ">", "<", ";", ",", ":",
+                "."),
+            '',
+            $string
+        );
+        return $string;
 
     }
 }

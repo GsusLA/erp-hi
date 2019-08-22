@@ -63,6 +63,26 @@ return [
             'bucket' => env('AWS_BUCKET'),
             'url' => env('AWS_URL'),
         ],
+
+        'sftp' => [
+            'driver' => 'sftp',
+            'host' => 'sftp://172.50.32.48',
+            'username' => 'ftpuser1',
+            'password' => '12345',
+            'visibility' => 'public',
+            'permPublic' => 0766, /// <- this one did the trick
+
+            // Settings for SSH key based authentication...
+            // 'privateKey' => '/path/to/privateKey',
+            // 'password' => 'encryption-password',
+
+            // Optional SFTP Settings...
+            // 'port' => 22,
+            // 'root' => '',
+            // 'timeout' => 30,
+        ],
+
+
         /**
          * Disks para configurar almacenamiento de layouts bancarios de Santander por H2H y Portal
          */
