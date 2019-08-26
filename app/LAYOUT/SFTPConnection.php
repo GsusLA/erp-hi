@@ -8,7 +8,6 @@ use League\Flysystem\Exception;
 
 class SFTPConnection
 {
-
     private $connection;
     private $sftp;
 
@@ -48,12 +47,32 @@ class SFTPConnection
         @fclose($stream);
     }
 
+    public function getFile($remote_file)
+    {
+        $sftp = $this->sftp;
+        $stream = @fopen("ssh2.sftp://$sftp$remote_file", 'r');
+        if (! $stream)
+            return false;
+            //throw new Exception("Could not open file: $remote_file");
+        $size = $this->getFileSize($remote_file);
+        $contents = '';
+        $read = 0;
+        $len = $size;
+        while ($read < $len && ($buf = fread($stream, $len - $read))) {
+            $read += strlen($buf);
+            $contents .= $buf;
+        }
+        @fclose($stream);
+        return $contents;
+    }
+
     public function receiveFile($remote_file, $local_file)
     {
         $sftp = $this->sftp;
         $stream = @fopen("ssh2.sftp://$sftp$remote_file", 'r');
         if (! $stream)
-            throw new Exception("Could not open file: $remote_file");
+            return false;
+            //throw new Exception("Could not open file: $remote_file");
         $size = $this->getFileSize($remote_file);
         $contents = '';
         $read = 0;

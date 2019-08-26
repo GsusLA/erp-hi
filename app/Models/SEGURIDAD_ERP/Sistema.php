@@ -14,7 +14,8 @@ use App\Models\IGH\Usuario;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Arr;
 
-class Sistema extends Model
+class
+Sistema extends Model
 {
     protected $connection = 'seguridad';
     protected $table = 'sistemas';

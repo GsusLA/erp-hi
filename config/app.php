@@ -21,6 +21,10 @@ return [
         'SANTANDER_H2H_DECODE_SALIDA' => env('SANTANDER_H2H_DECODE_SALIDA'),
         'SANTANDER_SFTP_ENTRADA' => env('SANTANDER_SFTP_ENTRADA'),
         'SANTANDER_SFTP_SALIDA' => env('SANTANDER_SFTP_SALIDA'),
+        'SFTP_H2H_HOST' => env('SFTP_H2H_HOST'),
+        'SFTP_H2H_PORT' => env('SFTP_H2H_PORT'),
+        'SFTP_H2H_USER' => env('SFTP_H2H_USER'),
+        'SFTP_H2H_PASS' => env('SFTP_H2H_PASS'),
     ],
     /*
     |--------------------------------------------------------------------------

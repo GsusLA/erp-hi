@@ -63,6 +63,11 @@ return [
             'bucket' => env('AWS_BUCKET'),
             'url' => env('AWS_URL'),
         ],
+
+        'cifrado' => [
+            'driver' => 'local',
+            'root' => 'C:\cifrado\DecodeEntrada',
+        ],
         /**
          * Disks para configurar almacenamiento de layouts bancarios de Santander por H2H y Portal
          */

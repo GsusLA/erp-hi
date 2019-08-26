@@ -3,9 +3,14 @@
 
 namespace App\LAYOUT;
 
+use App\Facades\Context;
 use App\Models\CADECO\Finanzas\DistribucionRecursoRemesaLayout;
+use App\Models\SEGURIDAD_ERP\Finanzas\GestionPagoH2H;
+use App\Models\SEGURIDAD_ERP\Sistema;
 use DateInterval;
 use DateTime;
+use Exception;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
 
 class DistribucionRecursoRemesa
@@ -31,6 +36,10 @@ class DistribucionRecursoRemesa
         $this->decode_salida = config('app.env_variables.SANTANDER_H2H_DECODE_SALIDA');
         $this->sftp_entrada = config('app.env_variables.SANTANDER_SFTP_ENTRADA');
         $this->sftp_salida = config('app.env_variables.SANTANDER_SFTP_SALIDA');
+        $this->sftp_h2h_host = config('app.env_variables.SFTP_H2H_HOST');
+        $this->sftp_h2h_port = config('app.env_variables.SFTP_H2H_PORT');
+        $this->sftp_h2h_user = config('app.env_variables.SFTP_H2H_USER');
+        $this->sftp_h2h_pass = config('app.env_variables.SFTP_H2H_PASS');
         $this->linea = 2;
     }
 
@@ -45,30 +54,25 @@ class DistribucionRecursoRemesa
         foreach ($this->data as $dat){$a .= $dat . "\n";}
         Storage::disk('h2h_in')->put($file_nombre.'.in', $a);
 
-        $this->enviarRepositorioFtp($file_nombre.'.in');
-
-        $reg_layout = DistribucionRecursoRemesaLayout::where('id_distrubucion_recurso', '=', $this->id)->first();
-
-
-        dd('stop panda');
-        if($reg_layout){
-            $reg_layout->contador_descarga = $reg_layout->contador_descarga + 1;
-            $reg_layout->save();
-
-            $this->remesa->estado = 2;
-            $this->remesa->save();
-
-        }else{
+        if($this->enviarRepositorioFtp($file_nombre.'.in')){
             $reg_layout = new DistribucionRecursoRemesaLayout();
-            $reg_layout->id_distrubucion_recurso =$this->id;
+            $reg_layout->id_distribucion_recurso =$this->id;
             $reg_layout->usuario_descarga = auth()->id();
             $reg_layout->contador_descarga = 1;
             $reg_layout->fecha_hora_descarga = date('Y-m-d h:i:s');
             $reg_layout->nombre_archivo = $file_nombre;
             $reg_layout->save();
 
+            $reg_gestion = new GestionPagoH2H();
+            $reg_gestion->id_distribucion_remesa = $this->id;
+            $reg_gestion->id_distribucion_remesa_layout = $reg_layout->id;
+            $reg_gestion->nombre_archivo = $file_nombre;
+            $reg_gestion->save();
+
             $this->remesa->estado = 2;
             $this->remesa->save();
+
+//            return true;
         }
 
           return Storage::disk('h2h_in')->download($file_nombre.'.in');
@@ -201,21 +205,30 @@ class DistribucionRecursoRemesa
     }
 
     function enviarRepositorioFtp($file){
-        $path = Storage::disk('h2h_in')->getDriver()->getAdapter()->getPathPrefix();
-        $cmd = str_replace('/', '\\', "copy " . $path . $file . " " . $this->cifrado_entrada . "\\" . $file);
-        exec($cmd , $salida, $resp);
-        if($resp != 0){echo 'Fallo copia a repositorio1';die;}
-        $cmd = str_replace('/', '\\', "copy " . $this->cifrado_entrada . "\\" . $file . " " . $this->cifrado_salida . "\\" . $file );
-        exec($cmd , $salida, $resp);
-        if($resp != 0){echo 'Fallo copia a repositorio2';die;}
+        try {
+            $path = Storage::disk('h2h_in')->getDriver()->getAdapter()->getPathPrefix();
+            $cmd = str_replace('/', '\\', "copy " . $path . $file . " " . $this->cifrado_entrada . "\\" . $file);
+            exec($cmd, $salida, $resp);
+            if ($resp != 0) {
+                echo 'Fallo envío a repositorio de salida.';
+                die;
+            }
+            $cmd = str_replace('/', '\\', "copy " . $this->cifrado_entrada . "\\" . $file . " " . $this->cifrado_salida . "\\" . $file);
+            exec($cmd, $salida, $resp);
+            if ($resp != 0) {
+                echo 'Fallo encriptación de layout.';
+                die;
+            }
 
-        $sftp = new SFTPConnection("172.50.32.48", 22);
-        $sftp->login("ftpuser1", "12345");
+            $sftp = new SFTPConnection($this->sftp_h2h_host, $this->sftp_h2h_port);
+            $sftp->login($this->sftp_h2h_user, $this->sftp_h2h_pass);
 
-        $sftp->uploadFile($this->cifrado_salida . "\\" . $file, $this->sftp_entrada . $file);
+            $sftp->uploadFile($this->cifrado_salida . "\\" . $file, $this->sftp_entrada . $file);
 
-        dd('pardo ok', $sftp);
-
+            return true;
+        }catch (Exception $e){
+            dd($e);
+        }
     }
 
     function elimina_caracteres_especiales($string){
