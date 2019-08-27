@@ -4,8 +4,16 @@
 namespace App\LAYOUT;
 
 
+use App\Facades\Context;
+use App\Models\CADECO\Finanzas\DistribucionRecursoRemesaLayout;
 use App\Models\CADECO\Finanzas\DistribucionRecursoRemesaPartida;
+use App\Models\CADECO\OrdenPago;
+use App\Models\CADECO\Pago;
+use App\Models\CADECO\PagoACuenta;
+use App\Models\CADECO\PagoVario;
+use App\Models\IGH\Usuario;
 use Exception;
+use Illuminate\Contracts\Auth\Authenticatable;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
 
@@ -19,11 +27,12 @@ class GesionPagosH2H
     protected $decode_salida;
     protected $sftp;
 
-    public function __construct($base, $idobra)
+    public function __construct($base, $idobra, $id_usuario)
     {
         session()->put('db', $base);
         session()->put('id_obra', $idobra);
         config()->set('database.connections.cadeco.database', $base);
+        auth()->loginUsingId($id_usuario, false);
         $this->decode_entrada = config('app.env_variables.SANTANDER_H2H_DECODE_ENTRADA');
         $this->decode_salida = config('app.env_variables.SANTANDER_H2H_DECODE_SALIDA');
         $this->sftp_entrada = config('app.env_variables.SANTANDER_SFTP_ENTRADA');
@@ -94,31 +103,115 @@ class GesionPagosH2H
                     for ($i = 1; $i < count($pagos) -1; $i++){
                         $id_documento = substr($pagos[$i], 228, 40);
                         $val_partida= substr($pagos[$i], 400, 2);
-                        dd($id_documento, $val_partida, $dispersion->where('id_documento', '=', $id_documento)->first());
-
-                        $dist_recurso_partida = DistribucionRecursoRemesaPartida::where('id_distribucion_recurso', '=', $dispersion->id)->where('id_documento', '=', $id_documento)->first()->partidaValidaEstado();
+                        $pago= substr($pagos[$i], 1, 20);
+                        $pago_remesa = null;
+                        $partida = $dispersion->partida->first(function ($value, $key) use($id_documento) {
+                            return $value->id_documento = $id_documento;
+                        });
 
                         if($val_partida== 0){
-                            $documento = Documento::with('tipoDocumento')->where('IDRemesa', '=', $dispersion->id_remesa)->where('IDDocumento', '=', $id_documento)->first();
-                            $transaccion = Transaccion::find($documento->IDTransaccionCDC);
-                            if($transaccion){
+                            $data = array(
+                                //"id_cuenta" => $partida_remesa->id_cuenta_cargo,
+                                "id_empresa" => $partida->documento->IDDestinatario,
+                                "id_moneda" => $partida->documento->IDMoneda,
+                                "monto" => -1 * abs($partida->documento->MontoTotalSolicitado),
+                                //"saldo" => -1 * abs($partida_remesa->documento->MontoTotalSolicitado),
+                                "referencia" => $pago,
+                                "comentario" => "I;". date("d/m/Y") ." ". date("h:s") .";". 4426,
+                                //"destino" => $partida_remesa->documento->Destinatario,
+                                //"observaciones" => $partida_remesa->documento->Observaciones
+                            );
+                            if ($partida->documento->transaccion) {
+                                $transaccion = $partida->documento->transaccion;
 
+                                switch ($partida->documento->transaccion->tipo_transaccion) {
+                                    case 65:
+                                        // se registra un pago
+                                        $data["id_antecedente"] = $transaccion->id_antecedente;
+                                        $data["id_referente"] = $transaccion->id_transaccion;
+                                        unset($data["referencia"]);
+                                        $o_pago = OrdenPago::query()->create($data);
+                                        $o_pago = OrdenPago::query()->where('id_transaccion', '=', $o_pago->id_transaccion)->first();
+                                        unset($data["id_antecedente"]);
+                                        unset($data["id_referente"]);
+                                        $data["numero_folio"] = $o_pago->numero_folio;
+                                        $data["referencia"] = $pago;
+                                        $data["estado"] = 2;
+                                        $data["id_cuenta"] = $partida->id_cuenta_cargo;
+                                        $data["destino"] = $partida->documento->Destinatario;
+                                        $data["observaciones"] = $partida->documento->Observaciones;
+                                        $pago_remesa = Pago::query()->create($data);
+
+                                        break;
+                                    case 72:
+                                        if ($partida->documento->IDTipoDocumento == 12) {
+                                            unset($data["id_empresa"]);
+                                            $data["id_antecedente"] = $transaccion->id_transaccion;
+                                            $data["id_referente"] = $transaccion->id_referente;
+                                            $data["estado"] = 1;
+                                            $data["id_cuenta"] = $partida->id_cuenta_cargo;
+                                            $data["saldo"] = -1 * abs($partida->documento->MontoTotalSolicitado);
+                                            $data["destino"] = $partida->documento->Destinatario;
+                                            $data["observaciones"] = $partida->documento->Observaciones;
+                                            $pago_remesa = PagoVario::query()->create($data);
+
+
+                                        } else {
+                                            $data["id_cuenta"] = $partida->id_cuenta_cargo;
+                                            $data["saldo"] = -1 * abs($partida->documento->MontoTotalSolicitado);
+                                            $data["destino"] = $partida->documento->Destinatario;
+                                            $data["observaciones"] = $partida->documento->Observaciones;
+
+                                            $pago_remesa = PagoACuenta::query()->create($data);
+                                        }
+                                        break;
+                                    default:
+                                        $data["id_cuenta"] = $partida->id_cuenta_cargo;
+                                        $data["saldo"] = -1 * abs($partida->documento->MontoTotalSolicitado);
+                                        $data["destino"] = $partida->documento->Destinatario;
+                                        $data["observaciones"] = $partida->documento->Observaciones;
+
+                                        $pago_remesa = PagoACuenta::query()->create($data);
+                                        break;
+                                }
+                                $transaccion->estado = 2;
+                                $transaccion->save();
+
+                            } else {
+                                $data["id_cuenta"] = $partida->id_cuenta_cargo;
+                                $data["saldo"] = -1 * abs($partida->documento->MontoTotalSolicitado);
+                                $data["destino"] = $partida->documento->Destinatario;
+                                $data["observaciones"] = $partida->documento->Observaciones;
+
+                                $pago_remesa = PagoACuenta::query()->create($data);
                             }
 
-                            dd($transaccion);
+                            $partida->estado = 2;
+                            $partida->id_transaccion_pago = $pago_remesa->id_transaccion;
+                            $partida->folio_partida_bancaria = $pago;
+                            $partida->save();
+
+
+                        }else{  /** Registrar motivo de rechazo de la partida y actualizar estado en la dispersión */
+                            // TODO registro de motivo de rechazo de la partida y la actualizacion de la misma
+                            $partida->estado = -2; //// registrar estado de rechazo bancario
+                            $partida->clave_aceptacion = 00;  /// registrar id de motivo de rechazo
+                            $partida->save();
                         }
-                        dd($val_partida== 0);
                     }
 
+                    $dispersion->estado = 3;
+                    $dispersion->save();
 
+                    $dispersion->remesaLayout->usuario_carga = auth()->id();
+                    $dispersion->remesaLayout->fecha_hora_carga = date('Y-m-d');
+                    $dispersion->remesaLayout->folio_confirmacion_bancaria = date('Y-m-d');
+                    $dispersion->remesaLayout->save();
 
+                    dd('poo', $dispersion->remesaLayout);
 
-                    /** @var  $dist_layout_registro, Actualizacion del registro del layout */
-                    $dist_layout_registro = DistribucionRecursoRemesaLayout::where('id_distrubucion_recurso', '=', $dispersion->id)->first();
-                    $dist_layout_registro->usuario_carga = auth()->id();
-                    $dist_layout_registro->fecha_hora_carga = date('Y-m-d h:i:s');
-                    $dist_layout_registro->folio_confirmacion_bancaria = 1;
-                    $dist_layout_registro->save();
+//                    $distribucion_layout = DistribucionRecursoRemesaLayout::query()->where('id_distrubucion_recurso', '=', $pago['id_distribucion_recurso'])->first();
+//
 
                     dd($dispersion,  $dispersion->id);
                     dd('stop polar');
