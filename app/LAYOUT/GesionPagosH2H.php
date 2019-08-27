@@ -55,13 +55,9 @@ class GesionPagosH2H
 
     public function buscar_respuesta_h2h($data){
         if($archivo = $this->sftp->getFile($this->sftp_salida.$data->nombre_archivo.'.out')){
-
             $this->decodificar_archivo($archivo, $data->nombre_archivo);
             $this->procesar_pagos($data->dispersion_remesa,$this->getOutData($data->nombre_archivo));
-
         }
-        dd('panda malo');
-
     }
 
     public function decodificar_archivo($archivo, $nombre){
@@ -96,20 +92,20 @@ class GesionPagosH2H
             /** Valida el estado del archivo de pagos, si la respuesta es diferente a '00' entonces el archivo fue rechazado por el banco,
              * y el código de rechaso es el indicado en estos mismos caraceres
              */
-            if( substr($pagos[0], 33, 2) === '00'){ /** Archivo de salida sin errores, registrar pagos*/
-                try{
-                    DB::connection('cadeco')->beginTransaction();
-
+            try{
+                DB::connection('cadeco')->beginTransaction();
+                $codigo_aceptacion_dispersion = substr($pagos[0], 33, 2);
+                if( $codigo_aceptacion_dispersion === '00'){ /** Archivo de salida sin errores, registrar pagos*/
                     for ($i = 1; $i < count($pagos) -1; $i++){
                         $id_documento = substr($pagos[$i], 228, 40);
-                        $val_partida= substr($pagos[$i], 400, 2);
+                        $codigo_aceptacion_partida = substr($pagos[$i], 400, 2);
                         $pago= substr($pagos[$i], 1, 20);
                         $pago_remesa = null;
                         $partida = $dispersion->partida->first(function ($value, $key) use($id_documento) {
                             return $value->id_documento = $id_documento;
                         });
 
-                        if($val_partida== 0){
+                        if($codigo_aceptacion_partida== 0){
                             $data = array(
                                 //"id_cuenta" => $partida_remesa->id_cuenta_cargo,
                                 "id_empresa" => $partida->documento->IDDestinatario,
@@ -189,45 +185,40 @@ class GesionPagosH2H
                             $partida->estado = 2;
                             $partida->id_transaccion_pago = $pago_remesa->id_transaccion;
                             $partida->folio_partida_bancaria = $pago;
-                            $partida->save();
-
 
                         }else{  /** Registrar motivo de rechazo de la partida y actualizar estado en la dispersión */
-                            // TODO registro de motivo de rechazo de la partida y la actualizacion de la misma
                             $partida->estado = -2; //// registrar estado de rechazo bancario
-                            $partida->clave_aceptacion = 00;  /// registrar id de motivo de rechazo
-                            $partida->save();
                         }
+
+                        $partida->clave_aceptacion = $codigo_aceptacion_partida;  /// registrar id de motivo de rechazo
+                        $partida->save();
                     }
 
                     $dispersion->estado = 3;
-                    $dispersion->save();
 
                     $dispersion->remesaLayout->usuario_carga = auth()->id();
                     $dispersion->remesaLayout->fecha_hora_carga = date('Y-m-d');
                     $dispersion->remesaLayout->folio_confirmacion_bancaria = date('Y-m-d');
                     $dispersion->remesaLayout->save();
 
-                    dd('poo', $dispersion->remesaLayout);
+                    $dispersion->gestionPagoH2H->estado = 2;
+                    $dispersion->gestionPagoH2H->save();
 
-//                    $distribucion_layout = DistribucionRecursoRemesaLayout::query()->where('id_distrubucion_recurso', '=', $pago['id_distribucion_recurso'])->first();
-//
 
-                    dd($dispersion,  $dispersion->id);
-                    dd('stop polar');
-                    DB::connection('cadeco')->commit();
-                }catch (\Exception $e){
-                    DB::connection('cadeco')->rollBack();
-                    abort(400, $e->getMessage());
-                    throw $e;
+                }else{ /** Archivo de salida con errores, se procede a registrar la causa de rechazo */
+                    // TODO Registrar causa de rechazo y cambio de estatus
+                    $dispersion->estado = -2;
+                    $dispersion->partida()->update(['estado' => -2, 'clave_aceptacion' => $codigo_aceptacion_dispersion])->save();
                 }
-
-            }else{ /** Archivo de salida con errores, se procede a registrar la causa de rechazo */
-                // TODO Registrar causa de rechazo y cambio de estatus
+                $dispersion->clave_aceptacion = $codigo_aceptacion_dispersion;
+                $dispersion->save();
+                DB::connection('cadeco')->commit();
+            }catch (\Exception $e){
+                DB::connection('cadeco')->rollBack();
+                $dispersion->gestionPagoH2H->estado = -2;
+                $dispersion->gestionPagoH2H->save();
             }
-            dd('koala', substr($pagos[0], 33, 2));
         }
-        dd(substr($pagos[0], 14, 1));
     }
 
 

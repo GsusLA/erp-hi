@@ -13,6 +13,7 @@ use App\Facades\Context;
 use App\Models\CADECO\Obra;
 use App\Models\IGH\Usuario;
 use App\Models\MODULOSSAO\ControlRemesas\RemesaLiberada;
+use App\Models\SEGURIDAD_ERP\Finanzas\GestionPagoH2H;
 use Illuminate\Database\Eloquent\Model;
 
 class DistribucionRecursoRemesa extends Model
@@ -65,6 +66,10 @@ class DistribucionRecursoRemesa extends Model
             $this->save();
             return $this;
         }
+    }
+
+    public function gestionPagoH2H(){
+        return $this->belongsTo(GestionPagoH2H::class, 'id', 'id_distribucion_remesa');
     }
 
     public function remesaLayout(){
