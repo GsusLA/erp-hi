@@ -25,7 +25,7 @@ class RegistrarPagos extends Command
      *
      * @var string
      */
-    protected $description = 'Command description';
+    protected $description = 'Registrar pagos desde respuesta H2H Santander';
 
     /**
      * Create a new command instance.
@@ -52,6 +52,5 @@ class RegistrarPagos extends Command
             $gestion = new GesionPagosH2H($pago->proyecto->base_datos, $pago->id_obra, $pago->id_usuario);
             $gestion->buscar_respuesta_h2h($pago);
         }
-        dd($pagos_h2h->count());
     }
 }

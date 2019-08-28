@@ -3,17 +3,11 @@
 
 namespace App\LAYOUT;
 
-
-use App\Facades\Context;
-use App\Models\CADECO\Finanzas\DistribucionRecursoRemesaLayout;
-use App\Models\CADECO\Finanzas\DistribucionRecursoRemesaPartida;
 use App\Models\CADECO\OrdenPago;
 use App\Models\CADECO\Pago;
 use App\Models\CADECO\PagoACuenta;
 use App\Models\CADECO\PagoVario;
-use App\Models\IGH\Usuario;
 use Exception;
-use Illuminate\Contracts\Auth\Authenticatable;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
 
@@ -33,14 +27,14 @@ class GesionPagosH2H
         session()->put('id_obra', $idobra);
         config()->set('database.connections.cadeco.database', $base);
         auth()->loginUsingId($id_usuario, false);
-        $this->decode_entrada = config('app.env_variables.SANTANDER_H2H_DECODE_ENTRADA');
-        $this->decode_salida = config('app.env_variables.SANTANDER_H2H_DECODE_SALIDA');
-        $this->sftp_entrada = config('app.env_variables.SANTANDER_SFTP_ENTRADA');
-        $this->sftp_salida = config('app.env_variables.SANTANDER_SFTP_SALIDA');
-        $this->sftp_h2h_host = config('app.env_variables.SFTP_H2H_HOST');
-        $this->sftp_h2h_port = config('app.env_variables.SFTP_H2H_PORT');
-        $this->sftp_h2h_user = config('app.env_variables.SFTP_H2H_USER');
-        $this->sftp_h2h_pass = config('app.env_variables.SFTP_H2H_PASS');
+        $this->decode_entrada   = config('app.env_variables.SANTANDER_H2H_DECODE_ENTRADA');
+        $this->decode_salida    = config('app.env_variables.SANTANDER_H2H_DECODE_SALIDA');
+        $this->sftp_entrada     = config('app.env_variables.SANTANDER_SFTP_ENTRADA');
+        $this->sftp_salida      = config('app.env_variables.SANTANDER_SFTP_SALIDA');
+        $this->sftp_h2h_host    = config('app.env_variables.SFTP_H2H_HOST');
+        $this->sftp_h2h_port    = config('app.env_variables.SFTP_H2H_PORT');
+        $this->sftp_h2h_user    = config('app.env_variables.SFTP_H2H_USER');
+        $this->sftp_h2h_pass    = config('app.env_variables.SFTP_H2H_PASS');
         $this->sftp_connect();
     }
 
@@ -95,14 +89,15 @@ class GesionPagosH2H
             try{
                 DB::connection('cadeco')->beginTransaction();
                 $codigo_aceptacion_dispersion = substr($pagos[0], 33, 2);
-                if( $codigo_aceptacion_dispersion === '00'){ /** Archivo de salida sin errores, registrar pagos*/
-                    for ($i = 1; $i < count($pagos) -1; $i++){
-                        $id_documento = substr($pagos[$i], 228, 40);
+                if( $codigo_aceptacion_dispersion === '00' && $dispersion->estado == 2){ /** Archivo de salida sin errores, registrar pagos*/
+                    for ($i = 1; $i < count($pagos) -2; $i++){
+                        $id_documento = str_replace(' ', '', substr($pagos[$i], 228, 40));
                         $codigo_aceptacion_partida = substr($pagos[$i], 400, 2);
                         $pago= substr($pagos[$i], 1, 20);
                         $pago_remesa = null;
                         $partida = $dispersion->partida->first(function ($value, $key) use($id_documento) {
-                            return $value->id_documento = $id_documento;
+                            if ($value->id_documento == $id_documento)
+                                return $value;
                         });
 
                         if($codigo_aceptacion_partida== 0){
@@ -113,13 +108,11 @@ class GesionPagosH2H
                                 "monto" => -1 * abs($partida->documento->MontoTotalSolicitado),
                                 //"saldo" => -1 * abs($partida_remesa->documento->MontoTotalSolicitado),
                                 "referencia" => $pago,
-                                "comentario" => "I;". date("d/m/Y") ." ". date("h:s") .";". 4426,
                                 //"destino" => $partida_remesa->documento->Destinatario,
                                 //"observaciones" => $partida_remesa->documento->Observaciones
                             );
                             if ($partida->documento->transaccion) {
                                 $transaccion = $partida->documento->transaccion;
-
                                 switch ($partida->documento->transaccion->tipo_transaccion) {
                                     case 65:
                                         // se registra un pago
