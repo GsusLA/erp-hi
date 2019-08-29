@@ -116,7 +116,6 @@ class GestionPagoService
         }catch (\Exception $e){
             throw New \Exception('Error al procesar el archivo: ' . $e->getMessage());
         }
-        return [];
     }
 
     public function registrarPagos($pagos){
@@ -176,13 +175,11 @@ class GestionPagoService
                                             $data["observaciones"] = $partida_remesa->documento->Observaciones;
                                             $pago_remesa = PagoVario::query()->create($data);
 
-
                                         } else {
                                             $data["id_cuenta"] = $partida_remesa->id_cuenta_cargo;
                                             $data["saldo"] = -1 * abs($partida_remesa->documento->MontoTotalSolicitado);
                                             $data["destino"] = $partida_remesa->documento->Destinatario;
                                             $data["observaciones"] = $partida_remesa->documento->Observaciones;
-
                                             $pago_remesa = PagoACuenta::query()->create($data);
                                         }
                                         break;

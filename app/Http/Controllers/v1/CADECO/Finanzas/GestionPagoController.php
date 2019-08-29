@@ -54,14 +54,12 @@ class GestionPagoController extends Controller
 
     public function presentaBitacora(Request $request){
         $respuesta = $this->service->validarBitacora($request->bitacora);
-//        $respuesta = $this->service->validarBitacora($request->file('file'));
         return response()->json($respuesta, 200);
     }
 
     public function registrarPagos(Request $request)
     {
         $respuesta = $this->service->registrarPagos($request->toArray());
-        dd('koala', $respuesta);
         return response()->json($respuesta, 200);
     }
 }

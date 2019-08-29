@@ -183,7 +183,6 @@
                     vm.file_interbancario = e.target.result;
                 };
                 reader.readAsDataURL(file);
-
             },
 
             onFileChange(e){
@@ -251,49 +250,6 @@
                         // this.cargando = false;
                     });
             },
-
-
-            getDocumentos(){
-
-                // this.documentos = null;
-                // this.original = null;
-                // this.monto_distribuido_anteriormente = 0;
-                // this.monto_total_remesa = 0;
-                // this.cargando = true;
-                // let self = this
-                // return self.$store.dispatch('finanzas/remesa/find',{
-                //     id: self.id_remesa,
-                //     params: {
-                //         include: ['documentosDisponibles', 'documentosDisponibles.empresa.cuentasBancariasProveedor.banco', 'documentosDisponibles.moneda', 'remesaLiberada', 'documentosDisponibles.fondo.empresa.cuentasBancariasProveedor.banco']
-                //     }
-                // })
-                //     .then(data => {
-                //         if(data.documentosDisponibles.data != 0) {
-                //             this.documentos = [];
-                //             this.original = [];
-                //             this.monto_distribuido_anteriormente = data.remesaLiberada.monto_distribuido;
-                //             this.monto_total_remesa = data.remesaLiberada.monto_total_remesa;
-                //             this.original = JSON.parse(JSON.stringify(data.documentosDisponibles.data));
-                //             this.documentos = JSON.parse(JSON.stringify(data.documentosDisponibles.data));
-                //         }else{
-                //             swal("La remesa seleccionada no tiene documentos disponibles para generar una distribución de recursos.", {
-                //                 icon: "warning",
-                //                 buttons: {
-                //                     confirm: {
-                //                         text: 'Aceptar'
-                //                     }
-                //                 }
-                //             })
-                //         }
-                //     })
-                //     .finally(() => {
-                //         this.cargando = false;
-                //         this.getCuentaCargo();
-                //     });
-            },
-
-
-
         },
         watch: {
 
