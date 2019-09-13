@@ -42,4 +42,8 @@ class InventarioFisicoService
         return $this->repository->show($id)->descargaLayout();
     }
 
+    public function generar_resumen_conteos($id){
+        return $this->repository->show($id)->generar_resumen_conteos();
+    }
+
 }
